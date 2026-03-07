@@ -14,7 +14,7 @@ Yes! While monitoring just one variable (like vibration) is simple, it is often 
 ---
 
 ## 🌐 The MQTT Wireless Ecosystem
-In this project, we don't use direct wires to connect every motor to the server. Instead, we use a wireless **Publish/Subscribe** architecture.
+In this project, we don't use direct wires to connect every motor to the server. Instead, we use a wireless **Publish/Subscribe** architecture. *(See `mqtt/` folder for reference implementation).*
 
 ### 🛠️ How it works:
 1.  **The Publisher (ESP8266):** Each motor has an ESP8266 chip. It reads the raw sensor data, packages it into a small JSON string, and "publishes" it to a specific **MQTT Topic** (e.g., `factory/motor1/telemetry`).

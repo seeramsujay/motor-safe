@@ -17,6 +17,7 @@ The broker is the traffic controller for your industrial data.
 
 ### 2. Python Analytics Engine
 This is the "Brain" that processes the live streams.
+*(Reference code available in `mqtt/server.py`)*
 - [ ] **Library:** Install `paho-mqtt` via pip.
 - [ ] **Connection:** Implement an MQTT client that persists a connection to `localhost`.
 - [ ] **Subscription:** Subscribe to the wildcard topic `factory/+/telemetry`. This allows one server to handle hundreds of motors.
@@ -40,6 +41,7 @@ Each motor node is a standalone "Slave" that monitors its assigned motor.
 
 ### 2. Firmware Logic Requirements (ESP8266)
 *Do not write code yet—follow these structural steps:*
+*(Reference code available in `mqtt/slave.ino`)*
 - [ ] **Network Init:** Boot the ESP8266 and establish a stable WiFi connection to the local access point.
 - [ ] **MQTT Handshake:**
     - [ ] Connect to the Server IP using the credentials created in the Broker setup.
