@@ -3,17 +3,9 @@ import math
 import random
 import numpy as np
 
-def generate_ac_motor_data(filename, num_rows=25000, sample_rate=1000):
-    headers = [
-        "Voltage", "Voltage_Anomaly",
-        "Current", "Current_Anomaly",
-        "Vibration", "Vibration_Anomaly",
-        "Confidence_Rating"
-    ]
-
+def generate_motor_signals(num_rows, freq_hz=50, sample_rate=1000):
     duration = num_rows / sample_rate
     t = np.linspace(0, duration, num_rows, endpoint=False)
-    freq_hz = 50
     omega = 2 * np.pi * freq_hz
 
     # Base signals
@@ -94,21 +86,41 @@ def generate_ac_motor_data(filename, num_rows=25000, sample_rate=1000):
             v_anomaly[start_idx:end_idx] = 1
             i_anomaly[start_idx:end_idx] = 1
             confidence[start_idx:end_idx] = 0.95
+            
+    return voltage, v_anomaly, current, i_anomaly, vibration, vib_anomaly, confidence
 
+def generate_ac_motor_data_for_multiple_motors(filename, num_motors=5, num_rows=25000, sample_rate=1000):
+    headers = []
+    for i in range(1, num_motors + 1):
+        headers.extend([
+            f"Motor_{i}_Voltage", f"Motor_{i}_Voltage_Anomaly",
+            f"Motor_{i}_Current", f"Motor_{i}_Current_Anomaly",
+            f"Motor_{i}_Vibration", f"Motor_{i}_Vibration_Anomaly",
+            f"Motor_{i}_Confidence_Rating"
+        ])
+
+    # Generate data arrays for all motors
+    motors_data = []
+    for _ in range(num_motors):
+        motors_data.append(generate_motor_signals(num_rows, sample_rate=sample_rate))
+
+    # Write everything to CSV
     with open(filename, mode='w', newline='') as file:
         writer = csv.writer(file)
         writer.writerow(headers)
         
         for i in range(num_rows):
-            # Format output neatly
-            row = [
-                round(voltage[i], 2), v_anomaly[i],
-                round(current[i], 2), i_anomaly[i],
-                round(vibration[i], 3), vib_anomaly[i],
-                round(confidence[i], 3)
-            ]
+            row = []
+            for j in range(num_motors):
+                voltage, v_anomaly, current, i_anomaly, vibration, vib_anomaly, confidence = motors_data[j]
+                row.extend([
+                    round(voltage[i], 2), v_anomaly[i],
+                    round(current[i], 2), i_anomaly[i],
+                    round(vibration[i], 3), vib_anomaly[i],
+                    round(confidence[i], 3)
+                ])
             writer.writerow(row)
 
 if __name__ == "__main__":
-    generate_ac_motor_data("motor_data.csv")
-    print("AC motor_data.csv generated successfully with 25,000 rows.")
+    generate_ac_motor_data_for_multiple_motors("motor_data.csv", num_motors=5)
+    print("AC motor_data.csv generated successfully for 5 motors with 25,000 rows.")
