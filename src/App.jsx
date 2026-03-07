@@ -1,10 +1,10 @@
 import { useEffect, useState, useRef, Suspense } from "react";
-import { Activity, Plus, Download, Server, AlertTriangle, X, CheckCircle2, LayoutDashboard, PieChart, Zap, Settings, Power } from "lucide-react";
+import { Activity, Plus, Download, Server, AlertTriangle, X, CheckCircle2, LayoutDashboard, PieChart, Zap, Power } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { clsx } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Canvas } from '@react-three/fiber';
-import { OrbitControls, PerspectiveCamera, Text, Float } from '@react-three/drei';
+import { Canvas, useFrame } from '@react-three/fiber';
+import { OrbitControls, PerspectiveCamera, Text } from '@react-three/drei';
 import Papa from "papaparse";
 
 function cn(...inputs) { return twMerge(clsx(inputs)); }
@@ -30,52 +30,86 @@ const INITIAL_DATA = {
   ],
 };
 
-// --- THE MISSING FUNCTION THAT CAUSED THE CRASH ---
 function getMotorStatus(confidence) {
-  if (confidence >= 70) return "critical"; // Red threshold
-  if (confidence >= 50) return "moderate"; // Amber threshold
-  return "good";                           // Green threshold
+  if (confidence >= 70) return "critical"; 
+  if (confidence >= 50) return "moderate"; 
+  return "good";                           
 }
 
-const FactorySimulation = ({ nodes }) => (
-  <div className="w-full h-full relative">
-    <Canvas shadows dpr={[1, 2]}>
-      <PerspectiveCamera makeDefault position={[0, 4, 3]} fov={50} />
-      <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
-      <Suspense fallback={null}>
-        <group>
-          <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.01, 0]}>
-            <planeGeometry args={[10, 10]} />
-            <shadowMaterial opacity={0.3} />
-          </mesh>
-          <gridHelper args={[10, 10, "#444", "#222"]} />
-          {nodes.slice(0, 5).map((node, i) => {
-            const positions = [[-1.5, 0, -1.2], [0, 0, -1.2], [1.5, 0, -1.2], [-1.5, 0, 1.2], [1.5, 0, 1.2]];
-            const status = STATUS_CONFIG[node.status];
-            const isCrit = node.status === 'critical';
-            return (
-              <Float key={node.id} position={positions[i]} speed={isCrit ? 4 : 1.5} rotationIntensity={isCrit ? 0.5 : 0.1}>
-                <group>
-                  <mesh castShadow receiveShadow>
-                    <boxGeometry args={[0.9, 0.4, 0.6]} />
-                    <meshStandardMaterial color="#334155" metalness={0.8} roughness={0.1} />
-                  </mesh>
-                  <mesh position={[0, 0.21, -0.2]}>
-                    <cylinderGeometry args={[0.15, 0.15, 0.05, 32]} />
-                    <meshStandardMaterial color={status.color} emissive={status.color} emissiveIntensity={isCrit ? 5 : 1} />
-                  </mesh>
-                  <Text position={[0, 0.6, 0]} fontSize={0.18} color="white" fontWeight="bold">{node.id}</Text>
-                </group>
-              </Float>
-            );
-          })}
-        </group>
-        <ambientLight intensity={0.4} />
-        <spotLight position={[5, 10, 5]} intensity={1} castShadow />
-      </Suspense>
-    </Canvas>
-  </div>
-);
+// 3D Spinning Motor Component
+const SpinningMotor = ({ node, position }) => {
+  const motorRef = useRef();
+  const status = STATUS_CONFIG[node.status];
+  const isCrit = node.status === 'critical';
+
+  useFrame((state, delta) => {
+    if (motorRef.current) {
+      const speed = isCrit ? 12 : 3;
+      motorRef.current.rotation.x += delta * speed;
+    }
+  });
+
+  return (
+    <group position={position}>
+      <mesh ref={motorRef} castShadow receiveShadow position={[0, 0.3, 0]} rotation={[0, 0, Math.PI / 2]}>
+        <cylinderGeometry args={[0.25, 0.25, 0.8, 6]} />
+        <meshStandardMaterial color="#334155" metalness={0.7} roughness={0.2} />
+      </mesh>
+
+      <mesh position={[0, 0.7, 0]}>
+        <sphereGeometry args={[0.1, 16, 16]} />
+        <meshStandardMaterial 
+          color={status.color} 
+          emissive={status.color} 
+          emissiveIntensity={isCrit ? 4 : 1} 
+        />
+      </mesh>
+
+      <Text position={[0, 1.0, 0]} fontSize={0.18} color="#0f172a" fontWeight="bold">
+        {node.id}
+      </Text>
+    </group>
+  );
+};
+
+// The Main Scene
+const FactorySimulation = ({ nodes }) => {
+  return (
+    <div className="w-full h-full relative">
+      <Canvas shadows dpr={[1, 2]}>
+        <color attach="background" args={['#ffffff']} />
+        
+        <PerspectiveCamera makeDefault position={[0, 4, 4]} fov={50} />
+        <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
+        
+        <Suspense fallback={null}>
+          <group>
+            <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.01, 0]}>
+              <planeGeometry args={[15, 15]} />
+              <shadowMaterial opacity={0.15} />
+            </mesh>
+            
+            <gridHelper args={[15, 15, "#cccccc", "#eeeeee"]} />
+
+            {nodes.slice(0, 5).map((node, i) => {
+              const positions = [
+                [-1.5, 0, -1.2], 
+                [0, 0, -1.2], 
+                [1.5, 0, -1.2], 
+                [-1.5, 0, 1.2], 
+                [1.5, 0, 1.2]
+              ];
+              return <SpinningMotor key={node.id} node={node} position={positions[i]} />;
+            })}
+          </group>
+          
+          <ambientLight intensity={0.6} />
+          <spotLight position={[5, 10, 5]} intensity={2} castShadow penumbra={1} />
+        </Suspense>
+      </Canvas>
+    </div>
+  );
+};
 
 const GlassCard = ({ children, className }) => (
   <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className={cn("backdrop-blur-xl bg-black/40 border border-white/10 rounded-2xl p-5 shadow-xl transition-all", className)}>{children}</motion.div>
@@ -98,25 +132,22 @@ export default function App() {
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
 
-  // 1. CSV Loader with Header Cleaning
   useEffect(() => {
     Papa.parse("/motor_parameters.csv", {
       download: true,
       header: true,
       skipEmptyLines: true,
-      transformHeader: (header) => header.trim(), // Fixes invisible spaces
+      transformHeader: (header) => header.trim(),
       complete: (res) => {
         setCsvData(res.data);
       },
     });
   }, []);
 
-  // 2. Playback Loop
   useEffect(() => {
     if (csvData.length === 0) return;
 
     const interval = setInterval(() => {
-      // Using functional state update to prevent the React stutter
       setCurrentRow((prevRow) => {
         const nextIdx = (prevRow + 1) % csvData.length;
         
@@ -127,13 +158,11 @@ export default function App() {
           const updatedNodes = prevData.nodes.map((node, i) => {
             const prefix = `Motor_${i + 1}`;
             
-            // --- FIXED: EXACT COLUMNS FROM YOUR EXCEL SCREENSHOT ---
             const rawVolt = parseFloat(row[`${prefix}_Voltage`]) || 0;
             const rawCurr = parseFloat(row[`${prefix}_Current`]) || 0;
             const rawVib  = parseFloat(row[`${prefix}_Vibration`]) || 0;
             const rawAnom = parseFloat(row[`${prefix}_Confidence_Rating`]) || 0; 
             
-            // 0-1 scale to 0-100%
             const confPercent = Math.abs(rawAnom) * 100;
             const status = getMotorStatus(confPercent);
 
@@ -161,10 +190,10 @@ export default function App() {
 
         return nextIdx;
       });
-    }, 100); // 100ms playback speed
+    }, 200);
 
     return () => clearInterval(interval);
-  }, [csvData]); // currentRow removed to prevent stuttering
+  }, [csvData]);
 
   const activeAlerts = data.nodes.filter(n => n.status !== 'good').length;
   const topBadMotors = [...data.nodes].filter(n => n.confidence >= 50).sort((a, b) => b.confidence - a.confidence);
