@@ -50,30 +50,113 @@ const StatCard = ({ title, value, icon: Icon, trend }) => (
     {trend && <p className="text-xs text-slate-500 mt-2 font-mono">{trend}</p>}
   </GlassCard>
 );
+import { Suspense } from 'react';
+import { Canvas } from '@react-three/fiber';
+import { OrbitControls, PerspectiveCamera, Text, Float } from '@react-three/drei';
 
 const FactorySimulation = ({ nodes }) => {
   return (
-    <div className="w-full h-full flex flex-col items-center justify-center p-8 relative">
-      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [transform:perspective(1000px)_rotateX(60deg)] opacity-40"></div>
+    <div className="w-full h-full relative">
+      <Canvas shadows dpr={[1, 2]}>
+        <PerspectiveCamera makeDefault position={[0, 4, 3]} fov={50} />
+        <OrbitControls
+          makeDefault
+          enableZoom={true}
+          enablePan={true}
+          minPolarAngle={0}
+          maxPolarAngle={Math.PI / 2} // Restrict camera to stay above floor
+          target={[0, 0, 0]}
+        />
+
+        <Suspense fallback={null}>
+          <group>
+            {/* Flat Grid Floor */}
+            <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.01, 0]}>
+              <planeGeometry args={[10, 10]} />
+              <shadowMaterial opacity={0.3} />
+            </mesh>
+            <gridHelper args={[10, 10, "#444", "#222"]} rotation={[0, 0, 0]} />
+
+            {/* Motor Representations - Arranged in a plan layout */}
+            {nodes.slice(0, 5).map((node, i) => {
+              // Defined plan positions for MTR-01 through MTR-05
+              const positions = [
+                [-1.5, 0, -1.2], // MTR-01 Top Left
+                [0, 0, -1.2],    // MTR-02 Top Center
+                [1.5, 0, -1.2],  // MTR-03 Top Right
+                [-1.5, 0, 1.2],   // MTR-04 Bottom Left
+                [1.5, 0, 1.2]    // MTR-05 Bottom Right
+              ];
+              const position = positions[i] || [0, 0, 0];
+              const status = STATUS_CONFIG[node.status];
+              const isCritical = node.status === 'critical';
+
+              return (
+                <Float
+                  key={node.id}
+                  position={position}
+                  speed={isCritical ? 3 : 1.5}
+                  rotationIntensity={isCritical ? 0.3 : 0.1}
+                  floatIntensity={isCritical ? 0.2 : 0.1}
+                >
+                  <group>
+                    {/* Simplified flat Motor Body for plan view */}
+                    <mesh castShadow receiveShadow>
+                      <boxGeometry args={[0.9, 0.4, 0.6]} />
+                      <meshStandardMaterial color="#334155" metalness={0.8} roughness={0.1} />
+                    </mesh>
+
+                    {/* Glowing status indicator at the top end of the box */}
+                    <mesh position={[0, 0.21, -0.2]} castShadow>
+                      <cylinderGeometry args={[0.2, 0.2, 0.1, 32]} />
+                      <meshStandardMaterial
+                        color={status.color}
+                        emissive={status.color}
+                        emissiveIntensity={isCritical ? 10 : 1}
+                      />
+                    </mesh>
+
+                    {/* Text Label above the node */}
+                    <Text
+                      position={[0, 0.6, 0]}
+                      fontSize={0.2}
+                      color="white"
+                      anchorX="center"
+                      anchorY="middle"
+                      fontWeight="bold"
+                    >
+                      {node.id}
+                    </Text>
+                  </group>
+                </Float>
+              );
+            })}
+          </group>
+          
+          <ambientLight intensity={0.5} />
+          <spotLight position={[5, 10, 5]} angle={0.2} penumbra={1} intensity={1} castShadow />
+          <directionalLight position={[0, 5, -5]} intensity={0.5} castShadow />
+        </Suspense>
+      </Canvas>
       
-      <div className="relative z-10 w-full max-w-2xl grid grid-cols-3 gap-12 place-items-center mt-12">
-        {nodes.slice(0, 5).map((node, i) => (
-          <div key={node.id} className={cn("relative flex flex-col items-center", i === 3 || i === 4 ? "col-span-1.5" : "")}>
-            <div className={cn("w-24 h-24 rounded-xl shadow-2xl flex items-center justify-center border-b-4 border-r-4", STATUS_CONFIG[node.status].bg, STATUS_CONFIG[node.status].border, node.status === 'critical' ? 'animate-pulse shadow-red-500/50' : '')}>
-                <Settings className={cn("w-12 h-12", node.status === 'critical' ? 'text-red-500 animate-spin' : node.status === 'moderate' ? 'text-amber-500 animate-[spin_3s_linear_infinite]' : 'text-emerald-500 animate-[spin_5s_linear_infinite]')} />
-            </div>
-            <div className="w-20 h-4 bg-slate-800 rounded-b-lg border-x border-b border-white/10" />
-            <div className="mt-4 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 text-center shadow-lg">
-                <p className="text-xs font-bold text-white">{node.id}</p>
-                <p className={cn("text-[10px] font-mono", STATUS_CONFIG[node.status].text)}>Conf: {parseFloat(node.confidence).toFixed(1)}%</p>
-            </div>
-          </div>
-        ))}
+      {/* Absolute Legend overlay positioned bottom left - updated to match visual design */}
+      <div className="absolute bottom-6 left-6 flex flex-col gap-3 p-5 bg-black/60 backdrop-blur-md rounded-2xl border border-white/5 pointer-events-none text-slate-400 font-mono text-[10px] uppercase tracking-wider font-bold">
+        <div className="flex items-center gap-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,1)]"/>
+            <p>HEALTHY_NODE</p>
+        </div>
+        <div className="flex items-center gap-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,1)]"/>
+            <p>ANOMALY_DETECTED</p>
+        </div>
+        <div className="flex items-center gap-3">
+            <div className="w-2.5 h-2.5 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,1)] animate-pulse"/>
+            <p>CRITICAL_FAILURE</p>
+        </div>
       </div>
     </div>
   );
 };
-
 export default function App() {
   const [data, setData] = useState(INITIAL_DATA);
   const [csvData, setCsvData] = useState([]); // CSV state
@@ -94,49 +177,68 @@ export default function App() {
     });
   }, []);
 
-  // 2. Simulation loop synced with CSV
+// 2. Automated CSV Data Integration
   useEffect(() => {
+    if (csvData.length === 0) return;
+
     const interval = setInterval(() => {
       setData((prev) => {
         let newLogs = [...prev.recent_logs];
         
-        const updatedNodes = prev.nodes.map((node) => {
-          // Check if this node exists in the CSV
-          const fileRecord = csvData.find(m => m.MotorID === node.id);
+        const updatedNodes = prev.nodes.map((node, index) => {
+          // 1. Get the latest row from the CSV
+          const latestRow = csvData[csvData.length - 1];
           
-          let baseConf = fileRecord ? parseFloat(fileRecord.Efficiency) : node.confidence;
-          let newConf = baseConf + (Math.random() - 0.5) * 2; // Slight jitter for "live" feel
+          // 2. Construct the keys based on your CSV's "Motor_X" format
+          // We use index + 1 because MTR-01 corresponds to Motor_1 in your CSV
+          const motorIndex = index + 1;
+          const prefix = `Motor_${motorIndex}`;
           
-          if (newConf < 0) newConf = 0;
-          if (newConf > 100) newConf = 100;
+          // 3. Extract the raw values
+          const rawVolt = latestRow[`${prefix}_Voltage`];
+          const rawCurr = latestRow[`${prefix}_Current`];
+          const rawAnom = latestRow[`${prefix}_Voltage_Anomaly`]; // This is where 0.7 lives
 
-          const newStatus = getMotorStatus(newConf);
+          // 4. Transform 0.7 into 70.0 for your UI
+          const numericAnom = Math.abs(parseFloat(rawAnom) || 0);
+          const displayConfidence = numericAnom <= 1 ? numericAnom * 100 : numericAnom;
 
+          const newStatus = getMotorStatus(displayConfidence);
+
+          // 5. Keep your existing Alert Logging logic
           if (newStatus === "critical" && node.status !== "critical") {
             newLogs.push({
               id: Date.now(),
               time: new Date().toLocaleTimeString(),
               type: "ALERT",
-              message: `CRITICAL: ${node.id} confidence exceeded 90%.`
+              message: `CRITICAL: ${node.id} anomaly detected at ${displayConfidence.toFixed(1)}%.`
             });
           }
 
+          // Return the node with REAL data from your CSV
           return {
             ...node,
-            voltage: fileRecord ? parseFloat(fileRecord.Voltage || 230) : +(node.voltage + (Math.random() - 0.5)).toFixed(1),
-            current: fileRecord ? parseFloat(fileRecord.Current || 12) : +(node.current + (Math.random() - 0.5)).toFixed(2),
-            vibration: fileRecord ? parseFloat(fileRecord.Vibration || 0.02) : +(Math.max(0, node.vibration + (Math.random() - 0.5) * 0.01)).toFixed(3),
-            confidence: newConf,
+            voltage: rawVolt || node.voltage,
+            current: rawCurr || node.current,
+            // Vibration isn't in your CSV screenshot, so we keep existing or set to 0
+            vibration: node.vibration, 
+            confidence: displayConfidence,
             status: newStatus
           };
         });
 
         if (newLogs.length > 50) newLogs.shift();
-        return { ...prev, timestamp: new Date().toISOString(), nodes: updatedNodes, recent_logs: newLogs };
+        return { 
+          ...prev, 
+          timestamp: new Date().toISOString(), 
+          nodes: updatedNodes, 
+          recent_logs: newLogs 
+        };
       });
-    }, 2000);
+    }, 100);
+    
     return () => clearInterval(interval);
-  }, [csvData]); // Trigger simulation update when CSV data loads
+  }, [csvData]);
 
   const handleAddMotor = () => {
     if(!newMotor.id || !newMotor.location) return;
