@@ -36,7 +36,7 @@ function getMotorStatus(confidence) {
   return "good";                           
 }
 
-// 3D Spinning Motor Component
+// --- PREMIUM MINIMALIST 3D SCENE (WHITE BACKGROUND) ---
 const SpinningMotor = ({ node, position }) => {
   const motorRef = useRef();
   const status = STATUS_CONFIG[node.status];
@@ -65,6 +65,7 @@ const SpinningMotor = ({ node, position }) => {
         />
       </mesh>
 
+      {/* Changed text color to dark slate so it's readable on white */}
       <Text position={[0, 1.0, 0]} fontSize={0.18} color="#0f172a" fontWeight="bold">
         {node.id}
       </Text>
@@ -72,37 +73,40 @@ const SpinningMotor = ({ node, position }) => {
   );
 };
 
-// The Main Scene
+// The Main Scene (Dynamically Scalable & White Mode)
 const FactorySimulation = ({ nodes }) => {
   return (
     <div className="w-full h-full relative">
       <Canvas shadows dpr={[1, 2]}>
+        {/* White Background */}
         <color attach="background" args={['#ffffff']} />
         
-        <PerspectiveCamera makeDefault position={[0, 4, 4]} fov={50} />
+        <PerspectiveCamera makeDefault position={[0, 5, 7]} fov={45} />
         <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.1} target={[0, 0, 0]} />
         
         <Suspense fallback={null}>
           <group>
+            {/* Floor Plane */}
             <mesh rotation={[-Math.PI / 2, 0, 0]} receiveShadow position={[0, -0.01, 0]}>
-              <planeGeometry args={[15, 15]} />
-              <shadowMaterial opacity={0.15} />
+              <planeGeometry args={[30, 30]} />
+              <shadowMaterial opacity={0.15} /> {/* Lighter shadow for white background */}
             </mesh>
             
-            <gridHelper args={[15, 15, "#cccccc", "#eeeeee"]} />
+            {/* Light Grid */}
+            <gridHelper args={[30, 30, "#cccccc", "#eeeeee"]} />
 
-            {nodes.slice(0, 5).map((node, i) => {
-              const positions = [
-                [-1.5, 0, -1.2], 
-                [0, 0, -1.2], 
-                [1.5, 0, -1.2], 
-                [-1.5, 0, 1.2], 
-                [1.5, 0, 1.2]
-              ];
-              return <SpinningMotor key={node.id} node={node} position={positions[i]} />;
+            {/* DYNAMIC GRID: Maps as many nodes as you add */}
+            {nodes.map((node, i) => {
+              const col = i % 3; 
+              const row = Math.floor(i / 3); 
+              const xPos = (col * 2.5) - 2.5; 
+              const zPos = (row * 2.5) - 1.5; 
+              
+              return <SpinningMotor key={node.id} node={node} position={[xPos, 0, zPos]} />;
             })}
           </group>
           
+          {/* Studio Lighting for white background */}
           <ambientLight intensity={0.6} />
           <spotLight position={[5, 10, 5]} intensity={2} castShadow penumbra={1} />
         </Suspense>
@@ -111,6 +115,7 @@ const FactorySimulation = ({ nodes }) => {
   );
 };
 
+// --- UI COMPONENTS ---
 const GlassCard = ({ children, className }) => (
   <motion.div initial={{ opacity: 0, y: 15 }} animate={{ opacity: 1, y: 0 }} className={cn("backdrop-blur-xl bg-black/40 border border-white/10 rounded-2xl p-5 shadow-xl transition-all", className)}>{children}</motion.div>
 );
@@ -125,13 +130,16 @@ const StatCard = ({ title, value, icon: Icon, trend }) => (
   </GlassCard>
 );
 
+// --- MAIN APP LOGIC ---
 export default function App() {
   const [data, setData] = useState(INITIAL_DATA);
   const [csvData, setCsvData] = useState([]);
   const [currentRow, setCurrentRow] = useState(0);
   const [activeTab, setActiveTab] = useState("dashboard");
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newMotor, setNewMotor] = useState({ id: "", location: "" });
 
+  // 1. Load CSV Data
   useEffect(() => {
     Papa.parse("/motor_parameters.csv", {
       download: true,
@@ -144,6 +152,7 @@ export default function App() {
     });
   }, []);
 
+  // 2. CSV Playback Loop & Data Engine
   useEffect(() => {
     if (csvData.length === 0) return;
 
@@ -157,11 +166,19 @@ export default function App() {
           
           const updatedNodes = prevData.nodes.map((node, i) => {
             const prefix = `Motor_${i + 1}`;
-            
-            const rawVolt = parseFloat(row[`${prefix}_Voltage`]) || 0;
-            const rawCurr = parseFloat(row[`${prefix}_Current`]) || 0;
-            const rawVib  = parseFloat(row[`${prefix}_Vibration`]) || 0;
-            const rawAnom = parseFloat(row[`${prefix}_Confidence_Rating`]) || 0; 
+            let rawVolt, rawCurr, rawVib, rawAnom;
+
+            if (row[`${prefix}_Voltage`] !== undefined) {
+              rawVolt = parseFloat(row[`${prefix}_Voltage`]) || 0;
+              rawCurr = parseFloat(row[`${prefix}_Current`]) || 0;
+              rawVib  = parseFloat(row[`${prefix}_Vibration`]) || 0;
+              rawAnom = parseFloat(row[`${prefix}_Confidence_Rating`]) || 0; 
+            } else {
+              rawVolt = 230 + (Math.random() * 2 - 1); 
+              rawCurr = 12 + (Math.random() * 1 - 0.5); 
+              rawVib = 0.02 + (Math.random() * 0.01); 
+              rawAnom = Math.random() > 0.95 ? Math.random() * 0.6 : Math.random() * 0.3;
+            }
             
             const confPercent = Math.abs(rawAnom) * 100;
             const status = getMotorStatus(confPercent);
@@ -190,10 +207,52 @@ export default function App() {
 
         return nextIdx;
       });
-    }, 200);
+    }, 100);
 
     return () => clearInterval(interval);
   }, [csvData]);
+
+  // 3. Handle Add Motor
+  const handleAddMotor = () => {
+    if (!newMotor.id || !newMotor.location) return;
+    
+    setData((prev) => ({
+      ...prev,
+      nodes: [
+        ...prev.nodes,
+        { id: newMotor.id, location: newMotor.location, voltage: "230.0", current: "12.0", vibration: "0.0200", confidence: 5, status: "good" }
+      ],
+      recent_logs: [
+        ...prev.recent_logs,
+        { id: Date.now(), time: new Date().toLocaleTimeString(), type: "SUCCESS", message: `Deployed new node: ${newMotor.id}` }
+      ].slice(-20)
+    }));
+    
+    setIsModalOpen(false);
+    setNewMotor({ id: "", location: "" });
+  };
+
+  // 4. Handle Export Data
+  const handleExportData = () => {
+    const csv = Papa.unparse(data.nodes);
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `MotorSafe_Live_Status_${Date.now()}.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+
+    setData(prev => ({
+      ...prev,
+      recent_logs: [
+        ...prev.recent_logs,
+        { id: Date.now(), time: new Date().toLocaleTimeString(), type: "SUCCESS", message: "System state exported to CSV." }
+      ].slice(-20)
+    }));
+  };
 
   const activeAlerts = data.nodes.filter(n => n.status !== 'good').length;
   const topBadMotors = [...data.nodes].filter(n => n.confidence >= 50).sort((a, b) => b.confidence - a.confidence);
@@ -223,14 +282,14 @@ export default function App() {
             <h2 className="text-xl font-semibold text-white">{activeTab === 'dashboard' ? "Factory Floor" : "Analytics"}</h2>
             <p className="text-[10px] text-slate-500 flex items-center gap-2"><span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse"/> ROW {currentRow} ACTIVE</p>
           </div>
-          <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs hover:bg-white/10 transition-colors"><Download size={14} /> EXPORT DATA</button>
+          <button onClick={handleExportData} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-white/5 border border-white/10 text-xs hover:bg-white/10 transition-colors active:scale-95"><Download size={14} /> EXPORT DATA</button>
         </header>
 
         <div className="flex-1 overflow-y-auto p-8 space-y-6">
           <div className="grid grid-cols-3 gap-6">
             <StatCard title="Active Nodes" value={data.nodes.length} icon={Server} trend="Hardware Online" />
             <StatCard title="System Alerts" value={activeAlerts} icon={AlertTriangle} trend="Critical/Warning" />
-            <StatCard title="Mean Anomaly" value={(data.nodes.reduce((acc, n) => acc + n.confidence, 0) / 5).toFixed(1) + "%"} icon={Activity} trend="Edge-AI Inference" />
+            <StatCard title="Mean Anomaly" value={(data.nodes.reduce((acc, n) => acc + n.confidence, 0) / Math.max(1, data.nodes.length)).toFixed(1) + "%"} icon={Activity} trend="Edge-AI Inference" />
           </div>
 
           {activeTab === 'dashboard' ? (
@@ -238,7 +297,7 @@ export default function App() {
               <GlassCard className="col-span-8 p-0 overflow-hidden bg-slate-900/20 border-white/5"><FactorySimulation nodes={data.nodes} /></GlassCard>
               <GlassCard className="col-span-4 flex flex-col">
                 <h3 className="text-xs font-bold text-slate-400 mb-4 uppercase tracking-widest">Emergency Attention</h3>
-                <div className="flex-1 overflow-y-auto space-y-3">
+                <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-700">
                   {topBadMotors.length === 0 ? <div className="text-center text-slate-600 mt-20 text-sm">All Systems Nominal</div> : 
                     topBadMotors.map(node => (
                       <div key={node.id} className={cn("p-4 rounded-xl border", STATUS_CONFIG[node.status].bg, STATUS_CONFIG[node.status].border)}>
@@ -251,25 +310,28 @@ export default function App() {
             </div>
           ) : (
             <GlassCard className="overflow-hidden">
-              <table className="w-full text-left">
-                <thead><tr className="border-b border-white/10 text-[10px] uppercase text-slate-500"><th className="p-4">Node</th><th className="p-4 text-right">Voltage</th><th className="p-4 text-right">Current</th><th className="p-4 text-right">Vibration</th><th className="p-4 text-right">Confidence</th><th className="p-4 text-center">Status</th></tr></thead>
-                <tbody>{data.nodes.map(node => (
-                  <tr key={node.id} className="border-b border-white/5 text-sm hover:bg-white/5 transition-colors">
-                    <td className="p-4 font-bold text-white">{node.id}</td>
-                    <td className="p-4 text-right font-mono text-slate-400">{node.voltage}V</td>
-                    <td className="p-4 text-right font-mono text-slate-400">{node.current}A</td>
-                    <td className="p-4 text-right font-mono text-slate-400">{node.vibration}</td>
-                    <td className={cn("p-4 text-right font-black", STATUS_CONFIG[node.status].text)}>{node.confidence.toFixed(1)}%</td>
-                    <td className="p-4 text-center"><span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", STATUS_CONFIG[node.status].text, STATUS_CONFIG[node.status].border)}>{STATUS_CONFIG[node.status].label}</span></td>
-                  </tr>
-                ))}</tbody>
-              </table>
+              <div className="overflow-x-auto max-h-[450px] scrollbar-thin scrollbar-thumb-slate-700">
+                <table className="w-full text-left relative">
+                  <thead className="sticky top-0 bg-[#111]"><tr className="border-b border-white/10 text-[10px] uppercase text-slate-500"><th className="p-4">Node</th><th className="p-4 text-left">Location</th><th className="p-4 text-right">Voltage</th><th className="p-4 text-right">Current</th><th className="p-4 text-right">Vibration</th><th className="p-4 text-right">Confidence</th><th className="p-4 text-center">Status</th></tr></thead>
+                  <tbody>{data.nodes.map(node => (
+                    <tr key={node.id} className="border-b border-white/5 text-sm hover:bg-white/5 transition-colors">
+                      <td className="p-4 font-bold text-white">{node.id}</td>
+                      <td className="p-4 text-slate-400">{node.location}</td>
+                      <td className="p-4 text-right font-mono text-slate-400">{node.voltage}V</td>
+                      <td className="p-4 text-right font-mono text-slate-400">{node.current}A</td>
+                      <td className="p-4 text-right font-mono text-slate-400">{node.vibration}</td>
+                      <td className={cn("p-4 text-right font-black", STATUS_CONFIG[node.status].text)}>{node.confidence.toFixed(1)}%</td>
+                      <td className="p-4 text-center"><span className={cn("px-2 py-0.5 rounded text-[10px] font-bold border", STATUS_CONFIG[node.status].text, STATUS_CONFIG[node.status].border)}>{STATUS_CONFIG[node.status].label}</span></td>
+                    </tr>
+                  ))}</tbody>
+                </table>
+              </div>
             </GlassCard>
           )}
 
           <GlassCard className="h-48 flex flex-col">
             <div className="text-[10px] font-bold text-slate-500 uppercase mb-3 flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" /> Live Event Log</div>
-            <div className="flex-1 overflow-y-auto font-mono text-[11px] space-y-1">
+            <div className="flex-1 overflow-y-auto font-mono text-[11px] space-y-1 pr-2 scrollbar-thin scrollbar-thumb-slate-700">
               {data.recent_logs.map(log => (
                 <div key={log.id} className="flex gap-4 border-b border-white/5 pb-1"><span className="text-slate-600">{log.time}</span><span className={cn("font-bold", log.type === 'ALERT' ? 'text-red-500' : 'text-emerald-500')}>{log.type}</span><span className="text-slate-400">{log.message}</span></div>
               ))}
@@ -286,8 +348,27 @@ export default function App() {
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }} className="relative bg-[#111] border border-white/10 p-8 rounded-2xl w-full max-w-md">
               <h3 className="text-xl font-bold text-white mb-6">Deploy New Motor Node</h3>
               <div className="space-y-4">
-                <div><label className="text-[10px] uppercase font-bold text-slate-500">Node ID</label><input className="w-full bg-black border border-white/10 p-3 rounded-lg mt-1 outline-none focus:border-amber-500/50" placeholder="MTR-06" /></div>
-                <button onClick={() => setIsModalOpen(false)} className="w-full bg-amber-600 py-3 rounded-lg font-bold mt-4">Initialize Sensor</button>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-500">Node ID</label>
+                  <input 
+                    value={newMotor.id}
+                    onChange={(e) => setNewMotor({ ...newMotor, id: e.target.value })}
+                    className="w-full bg-black border border-white/10 p-3 rounded-lg mt-1 outline-none focus:border-amber-500/50 text-white" 
+                    placeholder="MTR-06" 
+                  />
+                </div>
+                <div>
+                  <label className="text-[10px] uppercase font-bold text-slate-500">Location</label>
+                  <input 
+                    value={newMotor.location}
+                    onChange={(e) => setNewMotor({ ...newMotor, location: e.target.value })}
+                    className="w-full bg-black border border-white/10 p-3 rounded-lg mt-1 outline-none focus:border-amber-500/50 text-white" 
+                    placeholder="Assembly Line B" 
+                  />
+                </div>
+                <button onClick={handleAddMotor} className="w-full bg-amber-600 hover:bg-amber-500 transition-colors py-3 rounded-lg font-bold mt-4 text-white">
+                  Initialize Sensor
+                </button>
               </div>
             </motion.div>
           </div>
