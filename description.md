@@ -35,3 +35,5 @@ Example A: High Vibration + Normal Current = External mechanical shock (Ignore).
 Example B: High Current + Low Voltage = Grid power issue (Warning).
 
 Example C: High Current + High Vibration = Severe internal bearing friction (CRITICAL TRIP). 
+
+APIKEY-'AIzaSyDFeE1jebo4khEMImNZcOikDIN_7NL9jYY'
