@@ -1,318 +1,321 @@
-import React, { Suspense, useState, useEffect, useRef } from 'react';
-import { Canvas, useFrame } from '@react-three/fiber';
-import { 
-  OrbitControls, PerspectiveCamera, MeshReflectorMaterial, 
-  Float, Text, ContactShadows, Environment, Html 
-} from '@react-three/drei';
-import Papa from 'papaparse';
-import { 
-  Activity, ShieldCheck, AlertTriangle, Settings, Factory, 
-  Layout, Box, Bell, ChevronRight, Thermometer, Gauge, Zap, 
-  Search, Cpu, Database, Radio, RefreshCw, BarChart3, HardDrive,
-  User, logOut, Info, ShieldAlert
-} from 'lucide-react';
+import { useEffect, useState, useRef } from "react";
+import { Activity, Plus, Download, Server, AlertTriangle, X, CheckCircle2, LayoutDashboard, PieChart, Zap, Settings, Power } from "lucide-react";
+import { motion, AnimatePresence } from "framer-motion";
+import { clsx } from "clsx";
+import { twMerge } from "tailwind-merge";
+import Papa from "papaparse"; // Added PapaParse
 
-// --- 1. THE 3D MOTOR COMPONENT ---
-// This handles the individual 3D units on the floor
-function MotorUnit({ position, status, name, isSelected, onClick }) {
-  const meshRef = useRef();
-  const color = status === 'error' ? '#ef4444' : status === 'warning' ? '#f59e0b' : '#10b981';
-  
-  useFrame(() => {
-    if (meshRef.current && status !== 'error') {
-      meshRef.current.rotation.y += 0.03; // Real-time rotation
-    }
-  });
+function cn(...inputs) { return twMerge(clsx(inputs)); }
 
-  return (
-    <group position={position} onClick={onClick} cursor="pointer">
-      <Float speed={2} rotationIntensity={0.2} floatIntensity={0.2}>
-        {/* Machine Housing */}
-        <mesh castShadow receiveShadow>
-          <boxGeometry args={[1.3, 0.9, 1.6]} />
-          <meshStandardMaterial color="#1e293b" metalness={0.8} roughness={0.2} />
-        </mesh>
-        {/* Spinning Rotor / Status Light */}
-        <mesh ref={meshRef} position={[0, 0, 0.82]} rotation={[Math.PI / 2, 0, 0]}>
-          <cylinderGeometry args={[0.35, 0.35, 0.12, 32]} />
-          <meshStandardMaterial 
-            color={color} 
-            emissive={color} 
-            emissiveIntensity={isSelected ? 4 : 0.8} 
-          />
-        </mesh>
-        <Text 
-          position={[0, 1.1, 0]} 
-          fontSize={0.22} 
-          color="white" 
-          fontWeight="bold"
-        >
-          {name}
-        </Text>
-      </Float>
-    </group>
-  );
+// Updated Status Config for Confidence Ratings
+const STATUS_CONFIG = {
+  good: { color: "#10B981", label: "Optimal", bg: "bg-emerald-500/10", border: "border-emerald-500/30", text: "text-emerald-400" },
+  moderate: { color: "#F59E0B", label: "Warning", bg: "bg-amber-500/10", border: "border-amber-500/30", text: "text-amber-400" },
+  critical: { color: "#EF4444", label: "Critical", bg: "bg-red-500/20", border: "border-red-500/50", text: "text-red-500" },
+};
+
+// Initial 5 Motors Data
+const INITIAL_DATA = {
+  system_status: "ACTIVE",
+  timestamp: new Date().toISOString(),
+  nodes: [
+    { id: "MTR-01", location: "Conveyor Belt A", voltage: 230, current: 12.5, vibration: 0.02, confidence: 15, status: "good" },
+    { id: "MTR-02", location: "Main Pump", voltage: 228, current: 14.1, vibration: 0.05, confidence: 75, status: "moderate" },
+    { id: "MTR-03", location: "Cooling Fan", voltage: 231, current: 11.2, vibration: 0.01, confidence: 10, status: "good" },
+    { id: "MTR-04", location: "Extruder Drive", voltage: 215, current: 28.5, vibration: 0.85, confidence: 94, status: "critical" },
+    { id: "MTR-05", location: "Packaging Arm", voltage: 230, current: 13.0, vibration: 0.03, confidence: 22, status: "good" },
+  ],
+  recent_logs: [
+    { id: 1, time: new Date().toLocaleTimeString(), type: "SUCCESS", message: "MotorSafe Edge-AI Initialized. Listening to Serial Port." }
+  ],
+};
+
+function getMotorStatus(confidence) {
+  if (confidence >= 90) return "critical";
+  if (confidence >= 70) return "moderate";
+  return "good";
 }
 
-// --- 2. THE COMPLETE DASHBOARD ---
-export default function App() {
-  const [selectedMotor, setSelectedMotor] = useState("UNIT_01");
-  const [csvData, setCsvData] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [notifications] = useState(4);
-  const [systemStatus] = useState("Nominal");
+const GlassCard = ({ children, className, hover = false }) => (
+  <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} whileHover={hover ? { scale: 1.01, backgroundColor: "rgba(255,255,255,0.05)" } : {}} className={cn("backdrop-blur-xl bg-black/40 border border-white/10 rounded-2xl p-5 shadow-xl transition-colors", className)}>{children}</motion.div>
+);
 
-  // DATA INITIALIZATION
-  useEffect(() => {
-    const fetchData = async () => {
-      Papa.parse("/motor_parameters.csv", {
-        download: true,
-        header: true,
-        complete: (results) => {
-          setCsvData(results.data);
-          // Small timeout to show the "Boot" sequence
-          setTimeout(() => setLoading(false), 2000);
-        },
-      });
-    };
-    fetchData();
-  }, []);
+const StatCard = ({ title, value, icon: Icon, trend }) => (
+  <GlassCard hover className="flex flex-col justify-between h-32 relative overflow-hidden group">
+    <div className="absolute -right-4 -top-4 bg-gradient-to-br from-amber-500/20 to-transparent w-24 h-24 rounded-full blur-2xl group-hover:bg-amber-500/30 transition-all" />
+    <div className="flex justify-between items-start z-10">
+      <div><p className="text-slate-400 text-sm font-medium uppercase tracking-wider">{title}</p><h3 className="text-3xl font-bold text-white mt-2 tracking-tight">{value}</h3></div>
+      <div className="p-2 bg-white/5 rounded-lg text-amber-400"><Icon size={20} /></div>
+    </div>
+    {trend && <p className="text-xs text-slate-500 mt-2 font-mono">{trend}</p>}
+  </GlassCard>
+);
 
-  // Find data for the selected motor
-  const liveData = csvData.find(m => m.MotorID === selectedMotor) || {
-    Temperature: "64.2", Vibration: "0.021", Current: "12.8", Efficiency: "94"
-  };
-
-  if (loading) return (
-    <div className="h-screen bg-[#020617] flex flex-col items-center justify-center font-mono">
-      <div className="w-48 h-1 bg-slate-800 rounded-full mb-4 overflow-hidden">
-        <div className="h-full bg-amber-500 animate-[loading_2s_linear_infinite]" style={{width: '60%'}} />
+const FactorySimulation = ({ nodes }) => {
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center p-8 relative">
+      <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.03)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.03)_1px,transparent_1px)] bg-[size:40px_40px] [transform:perspective(1000px)_rotateX(60deg)] opacity-40"></div>
+      
+      <div className="relative z-10 w-full max-w-2xl grid grid-cols-3 gap-12 place-items-center mt-12">
+        {nodes.slice(0, 5).map((node, i) => (
+          <div key={node.id} className={cn("relative flex flex-col items-center", i === 3 || i === 4 ? "col-span-1.5" : "")}>
+            <div className={cn("w-24 h-24 rounded-xl shadow-2xl flex items-center justify-center border-b-4 border-r-4", STATUS_CONFIG[node.status].bg, STATUS_CONFIG[node.status].border, node.status === 'critical' ? 'animate-pulse shadow-red-500/50' : '')}>
+                <Settings className={cn("w-12 h-12", node.status === 'critical' ? 'text-red-500 animate-spin' : node.status === 'moderate' ? 'text-amber-500 animate-[spin_3s_linear_infinite]' : 'text-emerald-500 animate-[spin_5s_linear_infinite]')} />
+            </div>
+            <div className="w-20 h-4 bg-slate-800 rounded-b-lg border-x border-b border-white/10" />
+            <div className="mt-4 bg-black/80 backdrop-blur-md px-3 py-1.5 rounded-lg border border-white/10 text-center shadow-lg">
+                <p className="text-xs font-bold text-white">{node.id}</p>
+                <p className={cn("text-[10px] font-mono", STATUS_CONFIG[node.status].text)}>Conf: {parseFloat(node.confidence).toFixed(1)}%</p>
+            </div>
+          </div>
+        ))}
       </div>
-      <p className="text-amber-500 text-[10px] tracking-[0.4em] uppercase animate-pulse">
-        Establishing Secure Link // Sector 7G
-      </p>
     </div>
   );
+};
+
+export default function App() {
+  const [data, setData] = useState(INITIAL_DATA);
+  const [csvData, setCsvData] = useState([]); // CSV state
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [newMotor, setNewMotor] = useState({ id: "", location: "" });
+  const [activeTab, setActiveTab] = useState("dashboard"); 
+  const logsEndRef = useRef(null);
+
+  // 1. Load CSV Data
+  useEffect(() => {
+    Papa.parse("/motor_parameters.csv", {
+      download: true,
+      header: true,
+      skipEmptyLines: true,
+      complete: (results) => {
+        setCsvData(results.data);
+      },
+    });
+  }, []);
+
+  // 2. Simulation loop synced with CSV
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setData((prev) => {
+        let newLogs = [...prev.recent_logs];
+        
+        const updatedNodes = prev.nodes.map((node) => {
+          // Check if this node exists in the CSV
+          const fileRecord = csvData.find(m => m.MotorID === node.id);
+          
+          let baseConf = fileRecord ? parseFloat(fileRecord.Efficiency) : node.confidence;
+          let newConf = baseConf + (Math.random() - 0.5) * 2; // Slight jitter for "live" feel
+          
+          if (newConf < 0) newConf = 0;
+          if (newConf > 100) newConf = 100;
+
+          const newStatus = getMotorStatus(newConf);
+
+          if (newStatus === "critical" && node.status !== "critical") {
+            newLogs.push({
+              id: Date.now(),
+              time: new Date().toLocaleTimeString(),
+              type: "ALERT",
+              message: `CRITICAL: ${node.id} confidence exceeded 90%.`
+            });
+          }
+
+          return {
+            ...node,
+            voltage: fileRecord ? parseFloat(fileRecord.Voltage || 230) : +(node.voltage + (Math.random() - 0.5)).toFixed(1),
+            current: fileRecord ? parseFloat(fileRecord.Current || 12) : +(node.current + (Math.random() - 0.5)).toFixed(2),
+            vibration: fileRecord ? parseFloat(fileRecord.Vibration || 0.02) : +(Math.max(0, node.vibration + (Math.random() - 0.5) * 0.01)).toFixed(3),
+            confidence: newConf,
+            status: newStatus
+          };
+        });
+
+        if (newLogs.length > 50) newLogs.shift();
+        return { ...prev, timestamp: new Date().toISOString(), nodes: updatedNodes, recent_logs: newLogs };
+      });
+    }, 2000);
+    return () => clearInterval(interval);
+  }, [csvData]); // Trigger simulation update when CSV data loads
+
+  const handleAddMotor = () => {
+    if(!newMotor.id || !newMotor.location) return;
+    setData((d) => ({
+      ...d, nodes: [...d.nodes, { id: newMotor.id, location: newMotor.location, voltage: 230, current: 12, vibration: 0.01, confidence: 5, status: "good" }],
+    }));
+    setIsModalOpen(false); setNewMotor({ id: "", location: "" });
+  };
+
+  const activeAlerts = data.nodes.filter(n => n.status === 'moderate' || n.status === 'critical').length;
+  const criticalMotors = data.nodes.filter(n => n.status === 'critical');
+  const topBadMotors = [...data.nodes].sort((a, b) => b.confidence - a.confidence).filter(n => n.confidence >= 70);
 
   return (
-    <div className="flex h-screen w-full bg-[#020617] text-slate-300 font-sans overflow-hidden">
-      
-      {/* --- LEFT SIDEBAR (EXTENDED DETAIL) --- */}
-      <aside className="w-20 flex flex-col items-center py-8 bg-[#0B0F1A] border-r border-white/5 z-30 shadow-2xl">
-        <div className="p-3 bg-amber-500 rounded-2xl mb-12 shadow-xl shadow-amber-500/20 group cursor-pointer transition-transform hover:scale-105">
-          <Factory className="text-slate-950 group-hover:rotate-12 transition-transform" size={26} />
-        </div>
+    <div className="min-h-screen bg-[#0a0a0a] text-slate-200 font-sans selection:bg-amber-500/30">
+      <div className="fixed inset-0 z-0 pointer-events-none">
+        <div className="absolute top-[-20%] left-[-10%] w-[50%] h-[50%] bg-amber-900/10 rounded-full blur-[120px]" />
+        <div className="absolute bottom-[-20%] right-[-10%] w-[50%] h-[50%] bg-red-900/10 rounded-full blur-[120px]" />
+      </div>
+
+      <div className="relative z-10 flex h-screen overflow-hidden">
         
-        <nav className="flex-1 flex flex-col gap-9">
-          <div className="relative group">
-            <Layout className="text-amber-500 cursor-pointer" size={22} />
-            <div className="absolute -left-4 top-1/2 -translate-y-1/2 w-1 h-6 bg-amber-500 rounded-r-full shadow-[0_0_10px_rgba(245,158,11,1)]" />
+        {/* SIDEBAR */}
+        <aside className="w-64 bg-black/50 backdrop-blur-xl border-r border-white/5 flex flex-col p-6 gap-8">
+          <div className="flex items-center gap-3 px-2">
+            <div className="w-8 h-8 bg-gradient-to-tr from-amber-500 to-orange-600 rounded-lg flex items-center justify-center shadow-lg shadow-amber-500/20"><Power className="text-white" size={18} /></div>
+            <h1 className="text-xl font-bold tracking-tight text-white">Motor<span className="text-amber-500">Safe</span></h1>
           </div>
-          <Activity className="text-slate-600 hover:text-white transition-colors cursor-pointer" size={22} />
-          <Database className="text-slate-600 hover:text-white transition-colors cursor-pointer" size={22} />
-          <BarChart3 className="text-slate-600 hover:text-white transition-colors cursor-pointer" size={22} />
-          <Cpu className="text-slate-600 hover:text-white transition-colors cursor-pointer" size={22} />
-          <Radio className="text-slate-600 hover:text-white transition-colors cursor-pointer" size={22} />
-        </nav>
-
-        <div className="flex flex-col gap-8 mb-4 pt-8 border-t border-white/5">
-          <div className="relative cursor-pointer">
-            <Bell className="text-slate-600 hover:text-white transition-colors" size={20} />
-            <span className="absolute -top-1.5 -right-1.5 w-4 h-4 bg-red-600 text-[8px] flex items-center justify-center rounded-full text-white font-bold border-2 border-[#0B0F1A]">
-              {notifications}
-            </span>
-          </div>
-          <Settings className="text-slate-600 hover:text-white transition-colors animate-[spin_10s_linear_infinite]" size={20} />
-        </div>
-      </aside>
-
-      {/* --- MAIN INTERFACE HUB --- */}
-      <main className="flex-1 flex flex-col overflow-hidden">
-        
-        {/* COMPREHENSIVE HEADER */}
-        <header className="h-20 flex items-center justify-between px-10 bg-[#020617]/90 backdrop-blur-xl border-b border-white/5 z-20">
-          <div className="flex flex-col">
-            <div className="flex items-center gap-3">
-              <h1 className="text-2xl font-black text-white tracking-tighter italic uppercase">
-                Motor<span className="text-amber-500">Safe</span> <span className="text-xs font-mono text-slate-500 not-italic ml-2 uppercase tracking-widest">AI_Surveillance</span>
-              </h1>
-            </div>
-            <div className="flex items-center gap-2 mt-1">
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,1)] animate-pulse" />
-              <p className="text-[9px] font-mono text-slate-500 uppercase tracking-widest leading-none">
-                Connection Status: <span className="text-emerald-500">Encrypted</span> // Latency: 4ms
-              </p>
-            </div>
-          </div>
-
-          <div className="flex items-center gap-10">
-            <div className="hidden lg:flex items-center gap-4 px-6 py-2 bg-slate-900/40 rounded-full border border-white/5">
-              <Search size={14} className="text-slate-500" />
-              <input type="text" placeholder="Search Industrial Units..." className="bg-transparent border-none text-[11px] focus:outline-none w-48 text-slate-300" />
-            </div>
-            
-            <div className="flex items-center gap-4 pl-8 border-l border-white/10">
-              <div className="flex flex-col items-end">
-                <p className="text-xs font-bold text-white uppercase tracking-tight">Lochan_Admin</p>
-                <p className="text-[9px] text-amber-500 font-mono">Level 4 Access</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-slate-800 border border-white/10 flex items-center justify-center text-amber-500 shadow-inner group cursor-pointer hover:bg-slate-700 transition-colors">
-                <User size={20} />
-              </div>
-            </div>
-          </div>
-        </header>
-
-        {/* --- CENTRAL VIEWPORT (3D FLOOR PLAN + DATA) --- */}
-        <div className="flex-1 flex overflow-hidden">
           
-          {/* 3D ENGINE VIEW */}
-          <section className="flex-1 relative bg-black shadow-inner">
-            <Canvas shadows dpr={[1, 2]}>
-              <PerspectiveCamera makeDefault position={[12, 10, 12]} fov={38} />
-              <OrbitControls makeDefault minPolarAngle={0} maxPolarAngle={Math.PI / 2.2} />
-              
-              <Suspense fallback={<Html center><div className="text-amber-500 font-mono tracking-widest animate-pulse">MAP_RECONSTRUCTION...</div></Html>}>
-                {/* Metallic Factory Floor */}
-                <mesh rotation={[-Math.PI / 2, 0, 0]} position={[0, -0.45, 0]} receiveShadow>
-                  <planeGeometry args={[60, 60]} />
-                  <MeshReflectorMaterial
-                    blur={[400, 100]} resolution={1024} mixBlur={1} mixStrength={60}
-                    roughness={1} depthScale={1.2} minDepthThreshold={0.4} maxDepthThreshold={1.4}
-                    color="#0a0a0c" metalness={0.7}
-                  />
-                </mesh>
+          <nav className="flex flex-col gap-2">
+            <button onClick={() => setActiveTab('dashboard')} className={cn("flex items-center gap-3 px-4 py-3 rounded-xl transition-all", activeTab === 'dashboard' ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "hover:bg-white/5 text-slate-400 hover:text-white")}>
+                <LayoutDashboard size={18} /> Dashboard
+            </button>
+            <button onClick={() => setActiveTab('analytics')} className={cn("flex items-center gap-3 px-4 py-3 rounded-xl transition-all", activeTab === 'analytics' ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "hover:bg-white/5 text-slate-400 hover:text-white")}>
+                <PieChart size={18} /> Analytics & Data
+            </button>
+          </nav>
+          
+          <div className="mt-auto">
+             <button onClick={() => setIsModalOpen(true)} className="w-full flex items-center justify-center gap-2 bg-gradient-to-r from-amber-600 to-orange-600 hover:from-amber-500 hover:to-orange-500 text-white font-medium py-3 rounded-xl shadow-lg shadow-amber-900/20 transition-all active:scale-95">
+              <Plus size={18} /> Deploy Motor
+            </button>
+          </div>
+        </aside>
 
-                {/* Motor Units - Interactive Group */}
-                <MotorUnit position={[-4, 0, -3]} name="UNIT_01" status="healthy" isSelected={selectedMotor === "UNIT_01"} onClick={() => setSelectedMotor("UNIT_01")} />
-                <MotorUnit position={[0, 0, -3]} name="UNIT_02" status="warning" isSelected={selectedMotor === "UNIT_02"} onClick={() => setSelectedMotor("UNIT_02")} />
-                <MotorUnit position={[4, 0, -3]} name="UNIT_03" status="healthy" isSelected={selectedMotor === "UNIT_03"} onClick={() => setSelectedMotor("UNIT_03")} />
-                <MotorUnit position={[-2, 0, 3]} name="UNIT_04" status="error" isSelected={selectedMotor === "UNIT_04"} onClick={() => setSelectedMotor("UNIT_04")} />
-                <MotorUnit position={[2, 0, 3]} name="UNIT_05" status="healthy" isSelected={selectedMotor === "UNIT_05"} onClick={() => setSelectedMotor("UNIT_05")} />
-
-                <ambientLight intensity={0.4} />
-                <spotLight position={[20, 20, 10]} angle={0.25} penumbra={1} intensity={2.5} castShadow />
-                <ContactShadows resolution={1024} scale={20} blur={3} opacity={0.5} far={10} color="#000000" />
-                <Environment preset="night" />
-              </Suspense>
-            </Canvas>
-
-            {/* Bottom Scene Legend */}
-            <div className="absolute bottom-10 left-10 p-5 bg-[#0B0F1A]/60 backdrop-blur-xl rounded-2xl border border-white/5 pointer-events-none space-y-2">
-              <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400">
-                <div className="w-2 h-2 rounded-full bg-emerald-500 shadow-[0_0_8px_rgba(16,185,129,1)]" /> HEALTHY UNIT
-              </div>
-              <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400">
-                <div className="w-2 h-2 rounded-full bg-amber-500 shadow-[0_0_8px_rgba(245,158,11,1)]" /> ANOMALY DETECTED
-              </div>
-              <div className="flex items-center gap-3 text-[10px] font-bold text-slate-400">
-                <div className="w-2 h-2 rounded-full bg-red-500 shadow-[0_0_8px_rgba(239,68,68,1)]" /> CRITICAL_FAILURE
-              </div>
+        {/* MAIN CONTENT */}
+        <main className="flex-1 flex flex-col overflow-hidden">
+          <header className="h-20 border-b border-white/5 flex items-center justify-between px-8 bg-black/30 backdrop-blur-sm">
+            <div>
+                <h2 className="text-xl font-semibold text-white">
+                    {activeTab === 'dashboard' ? "Factory Floor Overview" : "Raw Sensor Feeds"}
+                </h2>
+                <p className="text-xs text-slate-500 flex items-center gap-2"><span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"/> Edge-AI Model Active • Last Sync: {new Date().toLocaleTimeString()}</p>
             </div>
-          </section>
+            <button className="flex items-center gap-2 px-4 py-2 rounded-lg bg-slate-800/50 hover:bg-slate-700/50 border border-white/10 text-sm transition-colors"><Download size={16} /> Export Logs</button>
+          </header>
 
-          {/* TELEMETRY & ANALYTICS SIDEBAR (400px Detail) */}
-          <aside className="w-[420px] bg-[#0B0F1A] border-l border-white/5 flex flex-col shadow-2xl z-20 overflow-y-auto">
-            
-            <div className="p-10 flex-1">
-              <header className="mb-12">
-                <div className="flex items-center justify-between mb-4">
-                  <span className="text-[10px] font-mono text-amber-500 tracking-[0.4em] uppercase font-black italic">Live Telemetry</span>
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-emerald-500 rounded-full" />
-                    <span className="text-[10px] font-bold text-slate-400">ACTIVE</span>
-                  </div>
-                </div>
-                <h2 className="text-5xl font-black text-white tracking-tighter uppercase italic">{selectedMotor}</h2>
-                <div className="flex gap-4 mt-8">
-                  <div className="flex-1 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
-                    <p className="text-[9px] text-slate-500 uppercase font-black mb-1">Health Score</p>
-                    <p className="text-2xl font-bold text-emerald-500 tracking-tighter font-mono">{liveData.Efficiency}%</p>
-                  </div>
-                  <div className="flex-1 p-4 bg-white/5 rounded-2xl border border-white/5 group hover:bg-white/10 transition-colors">
-                    <p className="text-[9px] text-slate-500 uppercase font-black mb-1">Vibration</p>
-                    <p className="text-2xl font-bold text-white tracking-tighter font-mono">{liveData.Vibration}g</p>
-                  </div>
-                </div>
-              </header>
-
-              {/* DYNAMIC SENSOR FEED */}
-              <div className="space-y-10">
-                {/* Temperature Gauge */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-end">
-                    <div className="flex items-center gap-3 text-blue-400">
-                      <Thermometer size={18} />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Heat Profile</span>
-                    </div>
-                    <span className="text-3xl font-mono font-bold text-white">{liveData.Temperature}°C</span>
-                  </div>
-                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-blue-400 h-full shadow-[0_0_15px_rgba(96,165,250,0.6)] transition-all duration-1000" 
-                      style={{width: `${(liveData.Temperature/100)*100}%`}}
-                    />
-                  </div>
-                </div>
-
-                {/* Power Gauge */}
-                <div className="space-y-4">
-                  <div className="flex justify-between items-end">
-                    <div className="flex items-center gap-3 text-amber-500">
-                      <Zap size={18} />
-                      <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Current Load</span>
-                    </div>
-                    <span className="text-3xl font-mono font-bold text-white">{liveData.Current}A</span>
-                  </div>
-                  <div className="w-full bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-amber-500 h-full shadow-[0_0_15px_rgba(245,158,11,0.6)] transition-all duration-1000" 
-                      style={{width: `${(liveData.Current/30)*100}%`}}
-                    />
-                  </div>
-                </div>
-
-                {/* Predicted Failure Bar Chart */}
-                <div className="pt-8 mt-8 border-t border-white/5">
-                  <div className="flex items-center justify-between mb-6">
-                    <p className="text-[10px] font-black text-slate-500 uppercase tracking-widest">Failure Probability (24H)</p>
-                    <ShieldAlert size={14} className="text-red-500" />
-                  </div>
-                  <div className="h-28 flex items-end gap-1.5 px-2">
-                    {[40, 55, 30, 45, 65, 50, 40, 80, 45, 30, 20, 15].map((h, i) => (
-                      <div 
-                        key={i} 
-                        className={`flex-1 rounded-t-sm transition-all duration-500 ${h > 70 ? 'bg-red-500' : 'bg-amber-500/30 hover:bg-amber-500'}`} 
-                        style={{height: `${h}%`}} 
-                      />
-                    ))}
-                  </div>
-                  <div className="flex justify-between mt-3 px-1">
-                    <span className="text-[8px] font-mono text-slate-700">-24H</span>
-                    <span className="text-[8px] font-mono text-slate-500">ML_PROJECTION</span>
-                    <span className="text-[8px] font-mono text-slate-700 italic">NOW</span>
-                  </div>
-                </div>
-              </div>
-
-              {/* CONTROL ACTIONS */}
-              <div className="mt-12 space-y-4 pb-10">
-                <button className="w-full py-5 bg-amber-500 hover:bg-amber-600 text-slate-950 font-black rounded-2xl transition-all flex items-center justify-center gap-3 group shadow-2xl shadow-amber-500/20 active:scale-[0.98]">
-                  INITIATE DIAGNOSTIC PROTOCOL <ChevronRight size={20} className="group-hover:translate-x-1 transition-transform" />
-                </button>
-                <div className="flex gap-4">
-                  <button className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white text-[10px] font-bold rounded-xl border border-white/5 transition-all uppercase tracking-widest flex items-center justify-center gap-2">
-                    <RefreshCw size={14} /> Reset Sensors
-                  </button>
-                  <button className="flex-1 py-4 bg-white/5 hover:bg-white/10 text-white text-[10px] font-bold rounded-xl border border-white/5 transition-all uppercase tracking-widest flex items-center justify-center gap-2">
-                    <logOut size={14} /> Secure Exit
-                  </button>
-                </div>
-              </div>
+          <div className="flex-1 overflow-y-auto p-8 space-y-6 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+              <StatCard title="Active Motors" value={data.nodes.length} icon={Server} trend="Live Sensor Fusion" />
+              <StatCard title="Active Alerts" value={activeAlerts} icon={AlertTriangle} trend="Moderate & Critical" />
+              <StatCard title="Bad Motors (Last 1hr)" value={criticalMotors.length} icon={Zap} trend="Requires Immediate Action" />
             </div>
-          </aside>
-        </div>
-      </main>
+
+            {/* DASHBOARD TAB */}
+            <div className={cn("grid grid-cols-12 gap-6 h-[500px]", activeTab === 'dashboard' ? "" : "hidden")}>
+                <GlassCard className="col-span-8 flex flex-col p-0 overflow-hidden relative border border-white/5 bg-gradient-to-b from-slate-900/50 to-black">
+                    <FactorySimulation nodes={data.nodes} />
+                </GlassCard>
+
+                <GlassCard className="col-span-4 flex flex-col overflow-hidden border-l border-amber-500/10">
+                    <div className="flex justify-between items-center mb-4"><h3 className="text-lg font-semibold text-white">Emergency Attention</h3><span className="text-xs px-2 py-1 rounded-full bg-red-950/50 border border-red-500/20 text-red-400 font-bold">{topBadMotors.length} Warnings</span></div>
+                    <div className="flex-1 overflow-y-auto space-y-3 pr-2 scrollbar-thin scrollbar-thumb-slate-700">
+                    {topBadMotors.length === 0 ? (
+                        <div className="h-full flex flex-col items-center justify-center text-slate-500">
+                            <CheckCircle2 size={32} className="mb-2 opacity-20" />
+                            <p className="text-sm">All motors operating optimally.</p>
+                        </div>
+                    ) : (
+                        <AnimatePresence>{topBadMotors.map((node) => {
+                            const status = STATUS_CONFIG[node.status];
+                            return (
+                                <motion.div key={node.id} initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} className={cn("p-4 rounded-xl border transition-all relative overflow-hidden group", status.bg, status.border)}>
+                                <div className="flex justify-between items-start relative z-10"><div className="flex items-start gap-3"><div className={cn("p-2 rounded-lg bg-black/40", status.text)}><AlertTriangle size={18} /></div><div><h4 className="font-bold text-white text-sm">{node.id}</h4><p className="text-xs text-slate-400">{node.location}</p></div></div></div>
+                                <div className="mt-3 flex items-end justify-between relative z-10">
+                                    <div>
+                                        <p className="text-[10px] uppercase text-slate-400 font-semibold mb-1">Anomaly Confidence</p>
+                                        <p className={cn("text-3xl font-black leading-none", status.text)}>{node.confidence.toFixed(1)}%</p>
+                                    </div>
+                                    <div className={cn("text-xs font-bold px-3 py-1.5 rounded-md border backdrop-blur-md", status.text, status.border, "bg-black/50")}>{status.label}</div>
+                                </div>
+                                </motion.div>
+                            );
+                        })}</AnimatePresence>
+                    )}
+                    </div>
+                </GlassCard>
+            </div>
+
+            {/* ANALYTICS TAB */}
+            {activeTab === 'analytics' && (
+                <GlassCard className="h-[500px] flex flex-col">
+                    <div className="flex justify-between items-center mb-6">
+                        <div><h3 className="text-lg font-semibold text-white">Multi-Modal Sensor Feed</h3><p className="text-sm text-slate-400">Real-time isolation forest inputs</p></div>
+                    </div>
+                    <div className="flex-1 overflow-auto scrollbar-thin scrollbar-thumb-slate-700">
+                        <table className="w-full text-left border-collapse">
+                            <thead>
+                                <tr className="border-b border-white/10 text-xs uppercase tracking-wider text-slate-400">
+                                    <th className="p-4 font-semibold">Motor ID</th>
+                                    <th className="p-4 font-semibold">Location</th>
+                                    <th className="p-4 font-semibold text-right">Voltage (V)</th>
+                                    <th className="p-4 font-semibold text-right">Current (A)</th>
+                                    <th className="p-4 font-semibold text-right">Vibration (g)</th>
+                                    <th className="p-4 font-semibold text-right">Confidence</th>
+                                    <th className="p-4 font-semibold text-center">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="text-sm">
+                                {data.nodes.map((node) => (
+                                    <tr key={node.id} className="border-b border-white/5 hover:bg-white/5 transition-colors">
+                                        <td className="p-4 font-bold text-white">{node.id}</td>
+                                        <td className="p-4 text-slate-300">{node.location}</td>
+                                        <td className="p-4 text-right font-mono text-slate-300">{node.voltage}</td>
+                                        <td className="p-4 text-right font-mono text-slate-300">{node.current}</td>
+                                        <td className="p-4 text-right font-mono text-slate-300">{node.vibration}</td>
+                                        <td className="p-4 text-right font-mono font-bold text-white">{node.confidence.toFixed(1)}%</td>
+                                        <td className="p-4 text-center">
+                                            <span className={cn("px-2 py-1 rounded text-xs font-bold border", STATUS_CONFIG[node.status].text, STATUS_CONFIG[node.status].border, STATUS_CONFIG[node.status].bg)}>
+                                                {STATUS_CONFIG[node.status].label}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+                </GlassCard>
+            )}
+
+            {/* SYSTEM LOGS */}
+            <GlassCard className="h-64 flex flex-col border border-white/5">
+                <h3 className="text-sm font-semibold text-slate-400 mb-3 uppercase tracking-wider flex items-center gap-2"><div className="w-1.5 h-1.5 bg-amber-500 rounded-full animate-pulse" /> Edge-AI Action Logs</h3>
+                <div className="flex-1 overflow-y-auto font-mono text-xs space-y-2 pr-2 scrollbar-thin scrollbar-thumb-slate-700">
+                    <AnimatePresence>
+                        {data.recent_logs.map((log) => (
+                            <motion.div key={log.id} initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: 'auto' }} className="flex gap-3 border-b border-white/5 pb-2 last:border-0">
+                                <span className="text-slate-500 min-w-[80px]">{log.time}</span>
+                                <span className={cn("font-bold min-w-[60px]", 
+                                    log.type === 'ALERT' ? 'text-red-400' : 
+                                    log.type === 'SUCCESS' ? 'text-emerald-400' : 'text-slate-400'
+                                )}>{log.type}</span>
+                                <span className="text-slate-300">{log.message}</span>
+                            </motion.div>
+                        ))}
+                        <div ref={logsEndRef} />
+                    </AnimatePresence>
+                </div>
+            </GlassCard>
+          </div>
+        </main>
+      </div>
+
+      {/* DEPLOY MODAL */}
+      <AnimatePresence>
+        {isModalOpen && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-black/80 backdrop-blur-sm" onClick={() => setIsModalOpen(false)} />
+            <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative bg-[#111] border border-white/10 p-6 rounded-2xl w-full max-w-md shadow-2xl">
+                <div className="flex justify-between items-center mb-6"><h3 className="text-xl font-bold text-white">Deploy New Motor Node</h3><button onClick={() => setIsModalOpen(false)} className="text-slate-400 hover:text-white"><X size={20}/></button></div>
+                <div className="space-y-4">
+                    <div><label className="block text-xs uppercase text-slate-500 font-bold mb-2">Motor Identifier</label><input value={newMotor.id} onChange={(e) => setNewMotor({...newMotor, id: e.target.value})} placeholder="e.g. MTR-06" className="w-full bg-black border border-white/10 rounded-lg p-3 text-white outline-none focus:border-amber-500/50 transition-colors" /></div>
+                    <div><label className="block text-xs uppercase text-slate-500 font-bold mb-2">Factory Location</label><input value={newMotor.location} onChange={(e) => setNewMotor({...newMotor, location: e.target.value})} placeholder="e.g. Assembly Line B" className="w-full bg-black border border-white/10 rounded-lg p-3 text-white outline-none focus:border-amber-500/50 transition-colors" /></div>
+                    <button onClick={handleAddMotor} className="w-full bg-amber-600 hover:bg-amber-500 text-white font-bold py-3 rounded-lg mt-2 transition-colors">Activate Node</button>
+                </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
