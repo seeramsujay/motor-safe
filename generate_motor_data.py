@@ -23,17 +23,18 @@ def generate_motor_signals(num_rows, freq_hz=50, sample_rate=1000):
     confidence = np.zeros(num_rows)
 
     # Add Anomalies
-    num_anomalies = random.randint(3, 6) # Generate 3-6 anomaly events
+    num_anomalies = random.randint(15, 25) # Generate 15-25 anomaly events
     
     for _ in range(num_anomalies):
         event_type = random.choice(['sag', 'wear', 'friction', 'spike'])
         
         # Decide roughly when it happens
-        start_idx = random.randint(1000, num_rows - 4000)
+        start_idx = random.randint(50, max(51, num_rows - 100))
         
         if event_type == 'sag':
-            length = random.randint(1000, 3000) # 1 to 3 seconds
-            end_idx = start_idx + length
+            length = random.randint(20, 60)
+            end_idx = min(start_idx + length, num_rows)
+            length = end_idx - start_idx
             
             # Smooth envelope for sag (e.g. going down to 80% voltage)
             sag_env = np.ones(length)
@@ -48,11 +49,12 @@ def generate_motor_signals(num_rows, freq_hz=50, sample_rate=1000):
             
             v_anomaly[start_idx:end_idx] = 1
             i_anomaly[start_idx:end_idx] = 1
-            confidence[start_idx:end_idx] = 0.7 * np.sin(np.pi * np.linspace(0, 1, length))
+            confidence[start_idx:end_idx] = np.maximum(confidence[start_idx:end_idx], 0.9 * np.sin(np.pi * np.linspace(0, 1, length)))
             
         elif event_type == 'wear':
-            length = random.randint(2000, 4000)
-            end_idx = start_idx + length
+            length = random.randint(30, 80)
+            end_idx = min(start_idx + length, num_rows)
+            length = end_idx - start_idx
             
             # Smoothly increase vibration amplitude and noise
             vib_env = np.linspace(1.0, 3.0, length)
@@ -60,11 +62,12 @@ def generate_motor_signals(num_rows, freq_hz=50, sample_rate=1000):
             vibration[start_idx:end_idx] += np.random.normal(0, 0.3, length) * np.linspace(0, 1, length)
             
             vib_anomaly[start_idx:end_idx] = 1
-            confidence[start_idx:end_idx] = 0.6 * np.linspace(0, 1, length)
+            confidence[start_idx:end_idx] = np.maximum(confidence[start_idx:end_idx], 0.9 * np.linspace(0, 1, length))
             
         elif event_type == 'friction':
-            length = random.randint(1500, 3000)
-            end_idx = start_idx + length
+            length = random.randint(30, 60)
+            end_idx = min(start_idx + length, num_rows)
+            length = end_idx - start_idx
             
             # Both current and vibration increase smoothly
             env = np.linspace(1.0, 1.8, length)
@@ -73,23 +76,24 @@ def generate_motor_signals(num_rows, freq_hz=50, sample_rate=1000):
             
             i_anomaly[start_idx:end_idx] = 1
             vib_anomaly[start_idx:end_idx] = 1
-            confidence[start_idx:end_idx] = 0.9 * np.linspace(0, 1, length)
+            confidence[start_idx:end_idx] = np.maximum(confidence[start_idx:end_idx], 0.95 * np.linspace(0, 1, length))
             
         elif event_type == 'spike':
             # Electrical transient (1-5 ms)
             length = random.randint(1, 5)
-            end_idx = start_idx + length
+            end_idx = min(start_idx + length, num_rows)
+            length = end_idx - start_idx
             
             voltage[start_idx:end_idx] += random.choice([-1, 1]) * random.uniform(200, 400)
             current[start_idx:end_idx] += random.choice([-1, 1]) * random.uniform(10, 20)
             
             v_anomaly[start_idx:end_idx] = 1
             i_anomaly[start_idx:end_idx] = 1
-            confidence[start_idx:end_idx] = 0.95
+            confidence[start_idx:end_idx] = np.maximum(confidence[start_idx:end_idx], 0.95 * np.ones(length))
             
     return voltage, v_anomaly, current, i_anomaly, vibration, vib_anomaly, confidence
 
-def generate_ac_motor_data_for_multiple_motors(filename, num_motors=5, num_rows=25000, sample_rate=1000):
+def generate_ac_motor_data_for_multiple_motors(filename, num_motors=5, num_rows=2500, sample_rate=1000):
     headers = []
     for i in range(1, num_motors + 1):
         headers.extend([
@@ -122,5 +126,5 @@ def generate_ac_motor_data_for_multiple_motors(filename, num_motors=5, num_rows=
             writer.writerow(row)
 
 if __name__ == "__main__":
-    generate_ac_motor_data_for_multiple_motors("motor_data.csv", num_motors=5)
-    print("AC motor_data.csv generated successfully for 5 motors with 25,000 rows.")
+    generate_ac_motor_data_for_multiple_motors("motor_data.csv", num_motors=5, num_rows=2500)
+    print("AC motor_data.csv generated successfully for 5 motors with 2,500 rows.")
