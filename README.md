@@ -9,11 +9,11 @@
 ## 📖 Project Overview
 Traditional industrial maintenance relies on single-variable monitoring (e.g., thermal cameras or vibration alone), which often leads to late-stage detection or false positives. 
 
-MotorSafe utilizes a **Multi-Modal Sensor Fusion** approach. By analyzing high-frequency current transients alongside voltage quality and physical vibration, our local unsupervised Machine Learning model cross-verifies faults. This ensures 100% predictive accuracy for mechanical drag, bearing wear, and rotor imbalances with zero cloud latency.
+MotorSafe utilizes a **Multi-Modal Sensor Fusion** approach. By analyzing high-frequency current transients alongside voltage quality and physical vibration, our local unsupervised Machine Learning model (**Isolation Forest**) cross-verifies faults. This ensures incredibly high predictive accuracy for mechanical drag, bearing wear, and rotor imbalances with zero cloud latency.
 
 ### ✨ Key Features
 * **Tri-Modal Sensor Fusion:** Simultaneously monitors Voltage, Current, and Vibration to eliminate false positives.
-* **Edge-AI Processing:** All DSP (Fast Fourier Transform) and ML anomaly detection runs locally, ensuring data privacy and zero latency.
+* **Edge-AI Processing:** All DSP (Fast Fourier Transform) and ML anomaly detection (via Isolation Forest) runs locally, ensuring data privacy and zero latency.
 * **Real-Time Telemetry Dashboard:** A local web interface built with Streamlit to visualize time-domain signals and frequency-domain (FFT) spectral shifts.
 * **Automated Safety Relay:** Triggers a physical hardware shut-off in milliseconds if critical multi-variate thresholds are crossed.
 
@@ -31,7 +31,7 @@ MotorSafe utilizes a **Multi-Modal Sensor Fusion** approach. By analyzing high-f
    * Raw time-domain signals are converted using **Fast Fourier Transform (FFT)** to isolate harmonic sidebands and mechanical fault frequencies.
 
 3. **Machine Learning / Anomaly Detection:**
-   * An Unsupervised Anomaly Detection algorithm (Isolation Forest / K-Means) monitors the tri-modal data to flag spectral deviations from the baseline "healthy" state.
+   * An Unsupervised Anomaly Detection algorithm (**Isolation Forest**) monitors the tri-modal data to flag spectral deviations from the baseline "healthy" state. Isolation Forest is specifically chosen for its edge-computing efficiency (linear time complexity) and extreme accuracy in identifying isolated mechanical/electrical transient faults.
 
 ---
 
