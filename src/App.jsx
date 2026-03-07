@@ -178,67 +178,69 @@ export default function App() {
   }, []);
 
 // 2. Automated CSV Data Integration
-  useEffect(() => {
-    if (csvData.length === 0) return;
+ // Add this state at the top of your App component with your other states
+const [currentRow, setCurrentRow] = useState(0);
 
-    const interval = setInterval(() => {
-      setData((prev) => {
-        let newLogs = [...prev.recent_logs];
+// Updated Status Helper for 50/70 thresholds
+const getMotorStatus = (confidence) => {
+  if (confidence >= 70) return "critical"; // New threshold
+  if (confidence >= 50) return "moderate"; // New threshold
+  return "good";
+};
+
+// 2. Automated CSV Step-Through Loop
+useEffect(() => {
+  if (csvData.length === 0) return;
+
+  const interval = setInterval(() => {
+    // 1. Move to the next row, loop back to start if at the end
+    const nextRowIndex = (currentRow + 1) % csvData.length;
+    setCurrentRow(nextRowIndex);
+
+    setData((prev) => {
+      let newLogs = [...prev.recent_logs];
+      const latestRow = csvData[nextRowIndex]; // Use the moving row index
+      
+      const updatedNodes = prev.nodes.map((node, index) => {
+        const motorIndex = index + 1;
+        const prefix = `Motor_${motorIndex}`;
         
-        const updatedNodes = prev.nodes.map((node, index) => {
-          // 1. Get the latest row from the CSV
-          const latestRow = csvData[csvData.length - 1];
-          
-          // 2. Construct the keys based on your CSV's "Motor_X" format
-          // We use index + 1 because MTR-01 corresponds to Motor_1 in your CSV
-          const motorIndex = index + 1;
-          const prefix = `Motor_${motorIndex}`;
-          
-          // 3. Extract the raw values
-          const rawVolt = latestRow[`${prefix}_Voltage`];
-          const rawCurr = latestRow[`${prefix}_Current`];
-          const rawAnom = latestRow[`${prefix}_Voltage_Anomaly`]; // This is where 0.7 lives
+        // 2. Extract raw data from the current moving row
+        const rawVolt = latestRow[`${prefix}_Voltage`];
+        const rawCurr = latestRow[`${prefix}_Current`];
+        const rawAnom = latestRow[`${prefix}_Voltage_Anomaly`];
 
-          // 4. Transform 0.7 into 70.0 for your UI
-          const numericAnom = Math.abs(parseFloat(rawAnom) || 0);
-          const displayConfidence = numericAnom <= 1 ? numericAnom * 100 : numericAnom;
+        // 3. Scale and clean data
+        const numericAnom = Math.abs(parseFloat(rawAnom) || 0);
+        const displayConfidence = numericAnom <= 1 ? numericAnom * 100 : numericAnom;
+        const newStatus = getMotorStatus(displayConfidence);
 
-          const newStatus = getMotorStatus(displayConfidence);
+        // 4. Alert Logic
+        if (newStatus === "critical" && node.status !== "critical") {
+          newLogs.push({
+            id: Date.now(),
+            time: new Date().toLocaleTimeString(),
+            type: "ALERT",
+            message: `CRITICAL: ${node.id} hit ${displayConfidence.toFixed(1)}%`
+          });
+        }
 
-          // 5. Keep your existing Alert Logging logic
-          if (newStatus === "critical" && node.status !== "critical") {
-            newLogs.push({
-              id: Date.now(),
-              time: new Date().toLocaleTimeString(),
-              type: "ALERT",
-              message: `CRITICAL: ${node.id} anomaly detected at ${displayConfidence.toFixed(1)}%.`
-            });
-          }
-
-          // Return the node with REAL data from your CSV
-          return {
-            ...node,
-            voltage: rawVolt || node.voltage,
-            current: rawCurr || node.current,
-            // Vibration isn't in your CSV screenshot, so we keep existing or set to 0
-            vibration: node.vibration, 
-            confidence: displayConfidence,
-            status: newStatus
-          };
-        });
-
-        if (newLogs.length > 50) newLogs.shift();
-        return { 
-          ...prev, 
-          timestamp: new Date().toISOString(), 
-          nodes: updatedNodes, 
-          recent_logs: newLogs 
+        return {
+          ...node,
+          voltage: parseFloat(rawVolt || 0).toFixed(1),
+          current: parseFloat(rawCurr || 0).toFixed(2),
+          confidence: displayConfidence,
+          status: newStatus
         };
       });
-    }, 100);
-    
-    return () => clearInterval(interval);
-  }, [csvData]);
+
+      if (newLogs.length > 50) newLogs.shift();
+      return { ...prev, nodes: updatedNodes, recent_logs: newLogs };
+    });
+  }, 100); // 1000ms = 1 second refresh
+
+  return () => clearInterval(interval);
+}, [csvData, currentRow]); // Added currentRow as dependency
 
   const handleAddMotor = () => {
     if(!newMotor.id || !newMotor.location) return;
