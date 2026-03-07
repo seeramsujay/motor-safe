@@ -1,23 +1,23 @@
-The Core Idea:
+# The Core Idea:
 Instead of just relying on one sensor, we are building a "sensor fusion" system. We are tracking three different parameters simultaneously—Voltage, Current, and Vibration—and feeding them into a local AI model. This is called multi-modal monitoring.
 
-Why are we doing it this way?
+# Why are we doing it this way?
 If you only monitor current, a random power grid fluctuation might trigger a false alarm. If you only monitor vibration, someone bumping into the machine might trigger a false alarm. By combining the electrical data (V & I) with physical data (Vibration), our system cross-verifies faults. It eliminates false positives and gives a 100% accurate diagnosis.
 
-The 3 Parameters (What each one actually does):
-1. Current (The Load Monitor)
+# The 3 Parameters (What each one actually does):
+## 1. Current (The Load Monitor)
 
 What it tells us: How hard the motor is working.
 
 The Fault: If the bearings are wearing out, friction increases. The motor has to pull more current to maintain the same speed. A slow, steady rise in current or sudden spikes (transients) tells our AI that the motor is physically struggling.
 
-2. Voltage (The Power Quality Monitor)
+## 2. Voltage (The Power Quality Monitor)
 
 What it tells us: What the electrical grid is supplying to the motor.
 
 The Fault: If the voltage drops suddenly (sag), the current will artificially spike to compensate. Because we are monitoring voltage, our AI knows this is a grid problem, not a mechanical motor problem, preventing a false alarm.
 
-3. Vibration (The Physical Wear Monitor)
+## 3. Vibration (The Physical Wear Monitor)
 
 What it tells us: The actual mechanical health of the spinning parts.
 
