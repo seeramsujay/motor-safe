@@ -1,18 +1,21 @@
-import pytest
 from pathlib import Path
-import numpy as np
+
 from generate_motor_data import generate_motor_signals
 from ml.anomaly_detector import AnomalyDetector
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
+
 def test_generate_motor_signals():
     num_rows = 200
-    voltage, v_anom, current, i_anom, vibration, vib_anom, confidence = generate_motor_signals(num_rows)
+    voltage, v_anom, current, i_anom, vibration, vib_anom, confidence = (
+        generate_motor_signals(num_rows)
+    )
     assert len(voltage) == num_rows
     assert len(current) == num_rows
     assert len(vibration) == num_rows
     assert len(confidence) == num_rows
+
 
 def test_anomaly_detector():
     model_path = REPO_ROOT / "ml" / "isolation_forest_model.joblib"
