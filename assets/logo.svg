@@ -1,0 +1,108 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 800 800" width="100%" height="100%">
+  <defs>
+    <linearGradient id="bg-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#080C14" />
+      <stop offset="50%" stop-color="#0F1722" />
+      <stop offset="100%" stop-color="#04070B" />
+    </linearGradient>
+
+    <!-- Industrial Motor Emerald-to-Cyan Gradient -->
+    <linearGradient id="motor-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" />
+      <stop offset="50%" stop-color="#06B6D4" />
+      <stop offset="100%" stop-color="#3B82F6" />
+    </linearGradient>
+
+    <!-- High-Voltage / Hazard Accent Gradient -->
+    <linearGradient id="hazard-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#F59E0B" />
+      <stop offset="100%" stop-color="#EF4444" />
+    </linearGradient>
+
+    <linearGradient id="core-glow" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#10B981" stop-opacity="0.3" />
+      <stop offset="100%" stop-color="#06B6D4" stop-opacity="0.05" />
+    </linearGradient>
+
+    <filter id="glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="12" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+
+    <filter id="subtle-glow" x="-20%" y="-20%" width="140%" height="140%">
+      <feGaussianBlur stdDeviation="5" result="blur" />
+      <feMerge>
+        <feMergeNode in="blur" />
+        <feMergeNode in="SourceGraphic" />
+      </feMerge>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="800" height="800" rx="160" fill="url(#bg-grad)" />
+  <rect width="796" height="796" x="2" y="2" rx="158" fill="none" stroke="#1E293B" stroke-width="2" />
+
+  <!-- Electromagnetic Stator Flux Orbit Rings -->
+  <g opacity="0.16" stroke="#00D2FF" stroke-width="1.5">
+    <circle cx="400" cy="380" r="140" fill="none" stroke-dasharray="6 6" />
+    <circle cx="400" cy="380" r="230" fill="none" stroke-dasharray="8 8" />
+    <line x1="400" y1="100" x2="400" y2="660" stroke-dasharray="4 8" />
+    <line x1="120" y1="380" x2="680" y2="380" stroke-dasharray="4 8" />
+  </g>
+
+  <!-- The MotorSafe Industrial Shield Outer Frame -->
+  <path d="M 400 160 
+           L 570 240 
+           C 570 420, 480 540, 400 600 
+           C 320 540, 230 420, 230 240 
+           Z" 
+        fill="url(#core-glow)" 
+        stroke="url(#motor-grad)" 
+        stroke-width="10" 
+        stroke-linejoin="round" 
+        filter="url(#glow)" />
+
+  <!-- Motor Stator Winding Teeth (Circular Radial Symmetry) -->
+  <g stroke="#38BDF8" stroke-width="4" stroke-linecap="round" filter="url(#subtle-glow)">
+    <line x1="400" y1="260" x2="400" y2="290" />
+    <line x1="400" y1="470" x2="400" y2="500" />
+    <line x1="280" y1="380" x2="310" y2="380" />
+    <line x1="490" y1="380" x2="520" y2="380" />
+    <line x1="315" y1="295" x2="335" y2="315" />
+    <line x1="465" y1="445" x2="485" y2="465" />
+    <line x1="315" y1="465" x2="335" y2="445" />
+    <line x1="465" y1="315" x2="485" y2="295" />
+  </g>
+
+  <!-- Central Rotor Core & Tri-Modal Sensor Fusion Waveform -->
+  <circle cx="400" cy="380" r="70" fill="#111827" stroke="url(#motor-grad)" stroke-width="5" filter="url(#glow)" />
+
+  <!-- Rotating Rotor Shaft / Keyway -->
+  <circle cx="400" cy="380" r="26" fill="#1E293B" stroke="#F8FAFC" stroke-width="3" />
+  <rect x="395" y="354" width="10" height="12" fill="#F8FAFC" />
+
+  <!-- Tri-Modal Sine Wave Pulse (Current, Voltage, Vibration) -->
+  <path d="M 340 380 Q 370 340, 400 380 T 460 380" fill="none" stroke="url(#hazard-grad)" stroke-width="4" stroke-linecap="round" filter="url(#subtle-glow)" />
+
+  <!-- Real-Time Anomaly Status Beacons -->
+  <g filter="url(#subtle-glow)">
+    <!-- Node Health 1: Current -->
+    <circle cx="310" cy="270" r="8" fill="#10B981" />
+    <!-- Node Health 2: Voltage -->
+    <circle cx="490" cy="270" r="8" fill="#06B6D4" />
+    <!-- Node Health 3: Vibration Warning -->
+    <circle cx="400" cy="540" r="10" fill="#F59E0B" />
+    <circle cx="400" cy="540" r="16" fill="none" stroke="#F59E0B" stroke-width="2" stroke-dasharray="3 3" />
+  </g>
+
+  <!-- Typography -->
+  <text x="400" y="685" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="34" font-weight="800" fill="#F8FAFC" letter-spacing="4">
+    MOTOR<tspan fill="#10B981">SAFE</tspan>
+  </text>
+  <text x="400" y="722" text-anchor="middle" font-family="system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif" font-size="13" font-weight="600" fill="#94A3B8" letter-spacing="3">
+    EDGE IOT &amp; 3D DIGITAL TWIN PREDICTIVE SRE
+  </text>
+</svg>

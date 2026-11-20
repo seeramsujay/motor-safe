@@ -1,13 +1,27 @@
-# 🏭 MotorSafe: Tri-Modal Edge-AI Predictive Maintenance & 3D Digital Twin
+<p align="center">
+  <img src="assets/logo.svg" alt="MotorSafe Logo" width="220" />
+</p>
 
-> Local-first anomaly isolation and 3D telemetry spatial mapping for Industry 4.0.
+<h1 align="center">MotorSafe</h1>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square)](https://opensource.org/licenses/MIT)
-[![Vite](https://img.shields.io/badge/Vite-5.x-blueviolet.svg?style=flat-square)](https://vitejs.dev/)
-[![React Three Fiber](https://img.shields.io/badge/R3F-8.x-blue.svg?style=flat-square)](https://docs.pmnd.rs/react-three-fiber)
-[![MQTT](https://img.shields.io/badge/MQTT-v3.1.1-orange.svg?style=flat-square)](https://mqtt.org/)
+<p align="center">
+  <strong>Edge IoT &amp; 3D Digital Twin Predictive Maintenance Platform for Industrial Electric Motors with Isolation Forest Anomaly Detection.</strong>
+</p>
 
-MotorSafe is an enterprise-grade, edge-native predictive maintenance ecosystem designed to prevent catastrophic industrial motor failures. By synchronizing and fusing three high-frequency telemetry streams—Voltage (power quality), Current (torque load), and Vibration (mechanical health)—the local unsupervised Machine Learning model (**Isolation Forest**) cross-verifies anomalies in real-time, eliminating false positives and predicting mechanical degradation days in advance.
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg?style=flat-square" alt="License: MIT"></a>
+  <img src="https://img.shields.io/badge/ML-Isolation_Forest-10B981.svg?style=flat-square" alt="Isolation Forest">
+  <img src="https://img.shields.io/badge/Broker-Mosquitto_MQTT-3B82F6.svg?style=flat-square&logo=eclipsemosquitto" alt="MQTT">
+  <img src="https://img.shields.io/badge/Frontend-React_Three_Fiber-06B6D4.svg?style=flat-square&logo=threedotjs" alt="R3F">
+  <img src="https://img.shields.io/badge/Microcontroller-ESP8266_%7C_ESP32-E7352C.svg?style=flat-square&logo=espressif" alt="ESP8266">
+  <a href="future.md"><img src="https://img.shields.io/badge/roadmap-future.md-blueviolet.svg?style=flat-square" alt="Roadmap"></a>
+</p>
+
+---
+
+## ⚡ Overview
+
+**MotorSafe** is a zero-latency predictive health and telemetry monitoring platform for industrial three-phase and single-phase electric motors. By combining **tri-modal physical sensor fusion**—Voltage (power quality), Current (torque load), and Vibration/Temperature (mechanical integrity)—with local unsupervised machine learning (**Isolation Forest**), MotorSafe detects insulation breakdown, bearing wear, and phase imbalances days before catastrophic equipment seizure occurs.
 
 ---
 
@@ -41,10 +55,10 @@ flowchart TD
 
 ## ⚡ Core Engineering Pillars
 
-*   **Tri-Modal Sensor Fusion:** Correlates power stability, current draws, and physical acoustics to prevent expensive, false-positive factory shutdowns caused by simple mechanical bumps.
-*   **Unsupervised Anomaly Isolation:** Employs an edge-optimized Isolation Forest algorithm that learns the unique, healthy signature of each motor on-the-fly, completely bypassing the need for manual training labels or historic failure logs.
-*   **3D React Three Fiber (R3F) Digital Twin:** Renders a gorgeous, zero-latency blueprint factory grid. Anomaly states (>70% confidence) trigger real-time Red visual pulses and dynamic spin accelerations directly on the failing 3D motor node.
-*   **Decoupled MQTT Scalability:** Add or remove dozens of physical motor nodes instantly. The Mosquitto MQTT broker routes incoming telemetry seamlessly without requiring a single central codebase alteration.
+*   **Tri-Modal Sensor Fusion:** Correlates power stability, current draws, and physical vibration to prevent expensive, false-positive factory shutdowns caused by ambient mechanical impacts.
+*   **Unsupervised Anomaly Isolation:** Employs an edge-optimized Isolation Forest algorithm that learns the unique baseline signature of each motor without historic failure logs.
+*   **3D React Three Fiber Digital Twin:** Renders a zero-latency blueprint factory grid. Anomaly states (>70% confidence) trigger visual red pulses and dynamic spin accelerations directly on the failing 3D motor node.
+*   **Decoupled MQTT Scalability:** Add or remove dozens of physical motor nodes instantly via wildcard topics (`factory/+/telemetry`).
 
 ---
 
@@ -60,57 +74,34 @@ flowchart TD
 
 ---
 
-## ⚙️ Specifications & Local Constraints
-
-*   **Low Computational Footprint:** Engineered to run optimally on standard edge industrial computers (e.g., dual-core MacBook Air 2017 i5, 8GB RAM). 
-*   **Memory Footprint:** Central Python server runs on **<50MB RAM** with zero external heavy ML framework dependencies (e.g., TensorFlow, PyTorch).
-*   **Zero-GPU Rendering:** React 3D Digital Twin uses highly optimized WebGL shaders and lightweight R3F meshes, maintaining a solid **60 FPS** on standard integrated graphics.
-
----
-
 ## 🚀 Quick Start (Under 60 Seconds)
 
 ### 1. Install & Seed Python ML Backend
-Ensure you have Python 3.8+ installed, then run the simulation and data generation script:
-
 ```bash
-# Install Python analytical dependencies
 pip install streamlit pandas numpy scipy scikit-learn pyserial plotly
-
-# Generate mock physical telemetry data
 python generate_motor_data.py
 ```
 
 ### 2. Launch 3D Digital Twin Frontend
-Move to the project root, install packages, and spin up the Vite development server:
-
 ```bash
-# Install Node packages
 npm install
-
-# Start Vite React Dashboard
 npm run dev
 ```
 
-### 3. Setup MQTT Broker (Optional Production Setup)
-Start Mosquitto locally to route real MQTT data packets from physical ESP8266 controllers:
-
+### 3. Setup MQTT Broker (Production Setup)
 ```bash
-# Debian / Ubuntu
 sudo apt install mosquitto mosquitto-clients -y
 sudo systemctl start mosquitto
 
-# Publish test JSON payload to verify connection
+# Test publish
 mosquitto_pub -h localhost -t "factory/motor1/telemetry" -m '{"voltage": 220, "current": 4.2, "vibration": 0.08}'
 ```
 
 ---
 
-## 🖥️ Command Center & Visual Triage
+## 🔮 Engineering Roadmap
 
-*   **Blueprint Factory Floor:** Minimalist off-black canvas styled specifically to minimize eye fatigue for factory control room operators.
-*   **Triage Automation Panel:** Failing motors are automatically isolated and pushed to the top of the operator queue for rapid physical inspection.
-*   **Historian Exporting:** Download entire filtered, raw sensor-fusion datasets instantly back to CSV format for post-mortem analysis.
+To explore planned features including Motor Current Signature Analysis (MCSA) via on-chip FFT, RS-485 Modbus RTU / OPC UA bridges, and FLIR thermal camera radiometry, read [future.md](future.md).
 
 ---
 
